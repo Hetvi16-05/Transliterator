@@ -33,17 +33,22 @@ TEST_TSV  = os.path.join(_DATASET_DIR, 'hi.translit.sampled.test.tsv')
 # ──────────────────────────────────────────────
 
 def configure_gpu():
-    """Enable GPU memory growth to avoid OOM errors."""
+    """Enable Metal GPU (Apple Silicon MPS) with memory growth."""
     gpus = tf.config.list_physical_devices('GPU')
     if gpus:
         try:
             for gpu in gpus:
                 tf.config.experimental.set_memory_growth(gpu, True)
-            print(f"✅  GPU configured: {[g.name for g in gpus]}")
+            # Log all visible devices
+            logical = tf.config.list_logical_devices('GPU')
+            print(f"✅  Metal GPU ready — {len(gpus)} physical, {len(logical)} logical")
+            for g in gpus:
+                print(f"    {g.name}")
         except RuntimeError as e:
-            print(f"⚠️  GPU config error: {e}")
+            # set_memory_growth must be called before any GPU ops
+            print(f"⚠️  GPU config error (may already be initialised): {e}")
     else:
-        print("ℹ️  No GPU found — running on CPU.")
+        print("ℹ️  No GPU/Metal device found — running on CPU.")
 
 
 # ──────────────────────────────────────────────

@@ -10,7 +10,7 @@ LOG_DIR="$REPO/logs"
 TMP_DIR="$REPO/.train_cmds"
 mkdir -p "$LOG_DIR" "$REPO/saved_models" "$TMP_DIR"
 
-PYTHON="${PYTHON:-python3}"
+PYTHON="/Applications/miniconda3/envs/ml/bin/python"
 
 echo "🗂  Repo  : $REPO"
 echo "🐍  Python: $($PYTHON --version 2>&1)"
