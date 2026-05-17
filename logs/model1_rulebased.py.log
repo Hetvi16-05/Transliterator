@@ -1,0 +1,16 @@
+🔤 Model 1: Rule-Based Transliterator
+
+  IN : narendra modi bharat ke pradhanmantri hain
+  OUT: नअरएन्द्रअ मओदइ भअरअत कए परअधअनमअन्तऋ हऐन
+
+  IN : dilli mein india gate sthit hai
+  OUT: दइल्लइ मएइन इन्दइअ गअतए सथइत हऐ
+
+  IN : aaj mausam accha hai
+  OUT: आज मऔसअम अकचअ हऐ
+
+
+📊 Model 1 — Rule-Based Results:
+   WER: 0.9984
+   CER: 0.6074
+   Word_Accuracy: 0.0016

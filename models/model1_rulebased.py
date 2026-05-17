@@ -11,7 +11,7 @@ Person 1 is responsible for this file.
 
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from models.utils import load_pairs, compute_metrics
+from models.utils import load_pairs, compute_metrics, configure_gpu
 
 # ──────────────────────────────────────────────────────────
 # FULL PHONEME MAPPING TABLE
@@ -92,8 +92,9 @@ def transliterate_sentence(sentence: str) -> str:
 # EVALUATE
 # ──────────────────────────────────────────────────────────
 
-def evaluate(test_path='dataset/processed/test.csv'):
-    pairs = load_pairs(test_path)
+def evaluate():
+    """Evaluate on Dakshina test split."""
+    pairs = load_pairs(split='test')
     preds = [transliterate(r) for r, _ in pairs]
     refs  = [d for _, d in pairs]
     metrics = compute_metrics(preds, refs)

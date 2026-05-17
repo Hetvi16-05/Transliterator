@@ -8,6 +8,8 @@ Model 2: Vanilla RNN Seq2Seq
 
 Person 1 is responsible for this file.
 
+Dataset: Dakshina v1.0 — Hindi lexicons (hi/lexicons/*.tsv)
+
 Usage:
     python models/model2_rnn.py
 """
@@ -18,14 +20,15 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, Model
-from models.utils import build_vocab, encode_sequences, load_pairs, compute_metrics
+from models.utils import (build_vocab, encode_sequences, load_pairs,
+                           compute_metrics, configure_gpu)
 
 # ──────────────────────────────────────────────
 # HYPERPARAMETERS
 # ──────────────────────────────────────────────
 EMBEDDING_DIM = 64
 UNITS         = 128
-BATCH_SIZE    = 16
+BATCH_SIZE    = 64
 EPOCHS        = 80
 MAX_ENC_LEN   = 30
 MAX_DEC_LEN   = 30
@@ -33,13 +36,13 @@ MODEL_PATH    = 'saved_models/model2_rnn.keras'
 
 
 # ──────────────────────────────────────────────
-# DATA
+# DATA  — loads directly from Dakshina TSV files
 # ──────────────────────────────────────────────
 
 def load_data():
-    train_pairs = load_pairs('dataset/processed/train.csv')
-    val_pairs   = load_pairs('dataset/processed/val.csv')
-    test_pairs  = load_pairs('dataset/processed/test.csv')
+    train_pairs = load_pairs(split='train')
+    val_pairs   = load_pairs(split='val')
+    test_pairs  = load_pairs(split='test')
     all_pairs   = train_pairs + val_pairs + test_pairs
     input2idx, idx2input, target2idx, idx2target = build_vocab(all_pairs)
 
@@ -108,6 +111,7 @@ def pad_seq(seq, max_len):
 # ──────────────────────────────────────────────
 
 def train():
+    configure_gpu()
     print("\n🚀 Model 2: Vanilla RNN — Training...\n")
     (enc_tr, dec_in_tr, dec_out_tr,
      enc_va, dec_in_va, dec_out_va,
@@ -115,13 +119,20 @@ def train():
      input2idx, idx2input, target2idx, idx2target,
      train_pairs, test_pairs) = load_data()
 
+    print(f"   Train: {len(train_pairs):,} | Val: {len(load_pairs(split='val')):,} | Test: {len(test_pairs):,}")
+
     model = build_model(len(input2idx), len(target2idx))
     model.summary()
+
+    cb = [
+        tf.keras.callbacks.EarlyStopping(patience=8, restore_best_weights=True),
+        tf.keras.callbacks.ReduceLROnPlateau(patience=4, factor=0.5),
+    ]
 
     model.fit(
         [enc_tr, dec_in_tr], dec_out_tr,
         validation_data=([enc_va, dec_in_va], dec_out_va),
-        epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=1
+        epochs=EPOCHS, batch_size=BATCH_SIZE, callbacks=cb, verbose=1
     )
 
     os.makedirs('saved_models', exist_ok=True)

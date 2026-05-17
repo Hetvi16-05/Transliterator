@@ -26,13 +26,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, Model
-from models.utils import build_vocab, encode_sequences, load_pairs, compute_metrics
+from models.utils import (build_vocab, encode_sequences, load_pairs,
+                           compute_metrics, configure_gpu)
 
 EMBEDDING_DIM  = 64
 CNN_FILTERS    = 128
 KERNEL_SIZE    = 3     # trigram features
 LSTM_UNITS     = 256
-BATCH_SIZE     = 16
+BATCH_SIZE     = 64
 EPOCHS         = 100
 MAX_ENC_LEN    = 30
 MAX_DEC_LEN    = 30
@@ -40,9 +41,9 @@ MODEL_PATH     = 'saved_models/model8_cnn_lstm.keras'
 
 
 def load_data():
-    train_pairs = load_pairs('dataset/processed/train.csv')
-    val_pairs   = load_pairs('dataset/processed/val.csv')
-    test_pairs  = load_pairs('dataset/processed/test.csv')
+    train_pairs = load_pairs(split='train')
+    val_pairs   = load_pairs(split='val')
+    test_pairs  = load_pairs(split='test')
     all_pairs   = train_pairs + val_pairs + test_pairs
     input2idx, idx2input, target2idx, idx2target = build_vocab(all_pairs)
     enc_tr, dec_in_tr, dec_out_tr = encode_sequences(train_pairs, input2idx, target2idx, MAX_ENC_LEN, MAX_DEC_LEN)
@@ -114,6 +115,7 @@ def predict_word(model, roman, input2idx, idx2target, target2idx):
 
 
 def train():
+    configure_gpu()
     print("\n🚀 Model 8: CNN + LSTM Hybrid — Training...\n")
     (enc_tr, dec_in_tr, dec_out_tr,
      enc_va, dec_in_va, dec_out_va,
