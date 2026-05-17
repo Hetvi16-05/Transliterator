@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Model weights
+saved_models/*.h5
+
+# Data (large files)
+dataset/raw/*.tsv
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
