@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Transliterator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap');
+        
+        :root {
+            --bg-color: #0f172a;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            z-index: 10;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 4rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            letter-spacing: -1.5px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.15rem;
+        }
+
+        .cards-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            position: relative;
+            animation: fadeUp 0.8s ease-out 0.2s both;
+        }
+
+        @media (max-width: 768px) {
+            .cards-wrapper {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2rem;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:focus-within {
+            transform: translateY(-8px);
+            box-shadow: 0 30px 60px -12px rgba(59, 130, 246, 0.2);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .card:focus-within::before {
+            opacity: 1;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .flag {
+            font-size: 1.5rem;
+            margin-right: 0.75rem;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+        }
+
+        textarea, .output-box {
+            width: 100%;
+            height: 250px;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            font-size: 1.4rem;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+        }
+        
+        .output-box {
+            overflow-y: auto;
+            color: #e2e8f0;
+            transition: opacity 0.3s ease;
+        }
+
+        textarea::placeholder {
+            color: #334155;
+        }
+
+        .loader {
+            position: absolute;
+            bottom: 2rem;
+            right: 2rem;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top-color: #c084fc;
+            animation: spin 1s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+            display: none;
+            box-shadow: 0 0 15px rgba(192, 132, 252, 0.5);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(167, 139, 250, 0.1);
+            color: #c084fc;
+            padding: 0.4rem 1rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1.2rem;
+            border: 1px solid rgba(167, 139, 250, 0.2);
+            box-shadow: 0 0 20px rgba(167, 139, 250, 0.1);
+        }
+        
+        .badge::before {
+            content: '';
+            display: block;
+            width: 8px;
+            height: 8px;
+            background: #c084fc;
+            border-radius: 50%;
+            margin-right: 8px;
+            box-shadow: 0 0 8px #c084fc;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.5; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div class="badge">Model 6: LSTM + Bahdanau Attention</div>
+            <h1>AI Transliterator</h1>
+            <p class="subtitle">Real-time Neural Machine Transliteration powered by Apple Silicon</p>
+        </header>
+
+        <div class="cards-wrapper">
+            <!-- English Input Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="flag">🇬🇧</span> Roman English
+                </div>
+                <textarea id="english-input" placeholder="Start typing hinged phrases...&#10;(e.g. Mujhe ek naya smartphone kharidna hai)" spellcheck="false"></textarea>
+            </div>
+
+            <!-- Hindi Output Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="flag">🇮🇳</span> Devanagari Hindi
+                </div>
+                <div id="hindi-output" class="output-box"></div>
+                <div id="loader" class="loader"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const inputField = document.getElementById('english-input');
+        const outputBox = document.getElementById('hindi-output');
+        const loader = document.getElementById('loader');
+        
+        let debounceTimer;
+
+        inputField.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            const text = inputField.value.trim();
+            
+            if (!text) {
+                outputBox.innerText = '';
+                loader.style.display = 'none';
+                return;
+            }
+
+            loader.style.display = 'block';
+            outputBox.style.opacity = '0.6';
+
+            // Wait 500ms after the user stops typing to send request
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch('/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: text })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        outputBox.innerText = data.hindi;
+                    }
+                } catch (error) {
+                    outputBox.innerText = 'Error connecting to API...';
+                } finally {
+                    loader.style.display = 'none';
+                    outputBox.style.opacity = '1';
+                }
+            }, 500); 
+        });
+        
+        // Focus input on load
+        window.onload = () => inputField.focus();
+    </script>
+</body>
+</html>

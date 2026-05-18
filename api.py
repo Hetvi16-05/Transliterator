@@ -2,6 +2,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import re
 import uvicorn
@@ -72,6 +73,11 @@ def load_resources():
     
     MODEL = load_model(6, len(INPUT2IDX), len(TARGET2IDX))
     print("Model loaded successfully!")
+
+@app.get("/", response_class=HTMLResponse)
+def serve_frontend():
+    with open("index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 @app.post("/translate", response_model=TranslationResponse)
 def translate_text(req: TranslationRequest):
