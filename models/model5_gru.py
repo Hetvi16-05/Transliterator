@@ -36,10 +36,18 @@ MODEL_PATH    = 'saved_models/model5_gru.keras'
 
 
 def load_data():
-    train_pairs = load_pairs(split='train')
-    val_pairs   = load_pairs(split='val')
-    test_pairs  = load_pairs(split='test')
-    all_pairs   = train_pairs + val_pairs + test_pairs
+    from sklearn.model_selection import train_test_split
+    pairs = []
+    with open('dataset/custom_combined_dataset.tsv', 'r', encoding='utf-8') as f:
+        for line in f:
+            parts = line.strip().split('\t')
+            if len(parts) >= 2:
+                pairs.append((parts[1], parts[0]))
+                
+    train_pairs, test_pairs = train_test_split(pairs, test_size=0.1, random_state=42)
+    train_pairs, val_pairs = train_test_split(train_pairs, test_size=0.1, random_state=42)
+    
+    all_pairs = train_pairs + val_pairs + test_pairs
     input2idx, idx2input, target2idx, idx2target = build_vocab(all_pairs)
     enc_tr, dec_in_tr, dec_out_tr = encode_sequences(train_pairs, input2idx, target2idx, MAX_ENC_LEN, MAX_DEC_LEN)
     enc_va, dec_in_va, dec_out_va = encode_sequences(val_pairs,   input2idx, target2idx, MAX_ENC_LEN, MAX_DEC_LEN)
@@ -49,22 +57,21 @@ def load_data():
             train_pairs, test_pairs)
 
 
-def build_model(input_vocab_size, target_vocab_size):
+def build_model(input_vocab_size, target_vocab_size, emb_dim, units, lr):
     # ── Encoder GRU ──
     encoder_inputs  = layers.Input(shape=(MAX_ENC_LEN,), name='enc_input')
-    enc_emb         = layers.Embedding(input_vocab_size, EMBEDDING_DIM)(encoder_inputs)
-    # GRU returns (output, state) — only 1 state unlike LSTM's 2
-    enc_out, enc_state = layers.GRU(UNITS, return_state=True, name='enc_gru')(enc_emb)
+    enc_emb         = layers.Embedding(input_vocab_size, emb_dim)(encoder_inputs)
+    enc_out, enc_state = layers.GRU(units, return_state=True, name='enc_gru')(enc_emb)
 
     # ── Decoder GRU ──
     decoder_inputs  = layers.Input(shape=(MAX_DEC_LEN,), name='dec_input')
-    dec_emb         = layers.Embedding(target_vocab_size, EMBEDDING_DIM)(decoder_inputs)
-    dec_out, _      = layers.GRU(UNITS, return_sequences=True, return_state=True,
+    dec_emb         = layers.Embedding(target_vocab_size, emb_dim)(decoder_inputs)
+    dec_out, _      = layers.GRU(units, return_sequences=True, return_state=True,
                                   name='dec_gru')(dec_emb, initial_state=enc_state)
     outputs         = layers.Dense(target_vocab_size, activation='softmax')(dec_out)
 
     model = Model([encoder_inputs, decoder_inputs], outputs)
-    model.compile(optimizer=tf.keras.optimizers.Adam(0.001),
+    model.compile(optimizer=tf.keras.optimizers.Adam(lr),
                   loss='sparse_categorical_crossentropy',
                   metrics=['accuracy'])
     return model
@@ -93,36 +100,83 @@ def predict_word(model, roman, input2idx, idx2target, target2idx):
 
 def train():
     configure_gpu()
-    print("\n🚀 Model 5: GRU Seq2Seq — Training...\n")
+    print("\n🚀 Model 5: GRU Seq2Seq — Training with Custom Dataset & Tuning...\n")
     (enc_tr, dec_in_tr, dec_out_tr,
      enc_va, dec_in_va, dec_out_va,
      input2idx, idx2input, target2idx, idx2target,
      train_pairs, test_pairs) = load_data()
 
-    model = build_model(len(input2idx), len(target2idx))
-    model.summary()
+    configs = [
+        {'emb': 128, 'units': 128, 'lr': 0.001, 'bs': 128},
+        {'emb': 256, 'units': 256, 'lr': 0.001, 'bs': 128},
+        {'emb': 128, 'units': 256, 'lr': 0.0005, 'bs': 64},
+        {'emb': 256, 'units': 128, 'lr': 0.0005, 'bs': 64}
+    ]
 
-    cb = [
+    best_val_acc = 0.0
+    best_config = None
+    tuning_results = []
+
+    print("--- Phase 1: Hyperparameter Tuning (20 Epochs each) ---")
+    for i, cfg in enumerate(configs):
+        print(f"\n[Testing Config {i+1}/4] Embed: {cfg['emb']}, Units: {cfg['units']}, LR: {cfg['lr']}, Batch: {cfg['bs']}")
+        model = build_model(len(input2idx), len(target2idx), cfg['emb'], cfg['units'], cfg['lr'])
+        cb = [tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True)]
+        
+        hist = model.fit(
+            [enc_tr, dec_in_tr], dec_out_tr,
+            validation_data=([enc_va, dec_in_va], dec_out_va),
+            epochs=20, batch_size=cfg['bs'], callbacks=cb, verbose=1
+        )
+        
+        val_acc = hist.history['val_accuracy'][-1]
+        train_acc = hist.history['accuracy'][-1]
+        tuning_results.append((cfg, train_acc, val_acc))
+        
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_config = cfg
+
+    print("\n--- Tuning Results Summary ---")
+    for idx, (cfg, t_acc, v_acc) in enumerate(tuning_results):
+        mark = "⭐⭐⭐" if cfg == best_config else ""
+        print(f"Config {idx+1}: Emb={cfg['emb']}, Units={cfg['units']}, LR={cfg['lr']}, Batch={cfg['bs']} -> Train Acc: {t_acc*100:.2f}%, Val Acc: {v_acc*100:.2f}% {mark}")
+
+    print("\n--- Phase 2: Final Training with Best Config ---")
+    print(f"Selected Best: {best_config}")
+    
+    final_model = build_model(len(input2idx), len(target2idx), best_config['emb'], best_config['units'], best_config['lr'])
+    final_cb = [
         tf.keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True),
         tf.keras.callbacks.ReduceLROnPlateau(patience=5, factor=0.5)
     ]
-    model.fit(
+    
+    final_hist = final_model.fit(
         [enc_tr, dec_in_tr], dec_out_tr,
         validation_data=([enc_va, dec_in_va], dec_out_va),
-        epochs=EPOCHS, batch_size=BATCH_SIZE, callbacks=cb, verbose=1
+        epochs=30, batch_size=best_config['bs'], callbacks=final_cb, verbose=1
     )
 
     os.makedirs('saved_models', exist_ok=True)
-    model.save(MODEL_PATH)
-    print(f"\n✅ Saved → {MODEL_PATH}")
+    final_model.save(MODEL_PATH)
+    print(f"\n✅ Saved Best Model → {MODEL_PATH}")
 
-    preds   = [predict_word(model, r, input2idx, idx2target, target2idx) for r, _ in test_pairs]
-    refs    = [d for _, d in test_pairs]
+    print("\n--- Phase 3: Final Evaluation on Test Set (1000 samples) ---")
+    sample_tests = test_pairs[:1000]
+    preds = []
+    for idx, (r, _) in enumerate(sample_tests):
+        preds.append(predict_word(final_model, r, input2idx, idx2target, target2idx))
+        if (idx+1) % 200 == 0: print(f"  Predicted {idx+1}/{len(sample_tests)}...")
+        
+    refs    = [d for _, d in sample_tests]
     metrics = compute_metrics(preds, refs)
-    print("\n📊 Model 5 — GRU Results:")
+    
+    print("\n📊 Model 5 — GRU Final Results (Best Hyperparams):")
+    print(f"   Final Train Acc : {final_hist.history['accuracy'][-1]*100:.2f}%")
+    print(f"   Final Val Acc   : {final_hist.history['val_accuracy'][-1]*100:.2f}%")
     for k, v in metrics.items():
         print(f"   {k}: {v}")
-    return model, input2idx, idx2target, target2idx, metrics
+    return final_model, input2idx, idx2target, target2idx, metrics
 
 
 if __name__ == '__main__':
