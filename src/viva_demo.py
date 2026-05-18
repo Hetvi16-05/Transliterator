@@ -10,8 +10,12 @@ import os
 # Suppress TF warnings for a clean presentation terminal
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
-import sys
+import time
 import re
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import the necessary functions from predict.py
 from predict import load_model, predict_word
@@ -28,9 +32,10 @@ def main():
 
     print("\n  ⏳ Loading Neural Network Weights... Please wait.")
     
-    # Build vocabulary from custom dataset
+    # Build vocabulary from custom dataset    
     pairs = []
-    with open('dataset/custom_combined_dataset.tsv', 'r', encoding='utf-8') as f:
+    dataset_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'dataset', 'custom_combined_dataset.tsv')
+    with open(dataset_path, 'r', encoding='utf-8') as f:
         for line in f:
             parts = line.strip().split('\t')
             if len(parts) >= 2:

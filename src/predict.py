@@ -9,8 +9,11 @@ Usage:
     python predict.py --model 5   # force model 5 (GRU)
 """
 
-import sys, os, argparse
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import re
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 from models.utils import load_pairs, build_vocab, configure_gpu, pad_seq
@@ -158,12 +161,8 @@ MAX_DEC_LEN = 30
 
 def build_vocab_from_dataset():
     """Load from custom dataset and build shared vocabulary."""
-    pairs = []
-    with open('dataset/custom_combined_dataset.tsv', 'r', encoding='utf-8') as f:
-        for line in f:
-            parts = line.strip().split('\t')
-            if len(parts) >= 2:
-                pairs.append((parts[1], parts[0]))
+    dataset_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'dataset', 'custom_combined_dataset.tsv')
+    pairs = load_pairs(dataset_path)
     return build_vocab(pairs)
 
 

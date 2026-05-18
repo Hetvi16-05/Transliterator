@@ -1,4 +1,7 @@
 import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from fastapi import FastAPI
@@ -62,7 +65,8 @@ def load_resources():
     configure_gpu()
     
     pairs = []
-    with open('dataset/custom_combined_dataset.tsv', 'r', encoding='utf-8') as f:
+    dataset_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'dataset', 'custom_combined_dataset.tsv')
+    with open(dataset_path, 'r', encoding='utf-8') as f:
         for line in f:
             parts = line.strip().split('\t')
             if len(parts) >= 2:
@@ -76,7 +80,8 @@ def load_resources():
 
 @app.get("/", response_class=HTMLResponse)
 def serve_frontend():
-    with open("index.html", "r", encoding="utf-8") as f:
+    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
+    with open(html_path, "r", encoding="utf-8") as f:
         return f.read()
 
 @app.post("/translate", response_model=TranslationResponse)
