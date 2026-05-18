@@ -1,23 +1,3 @@
-"""
-model6_attention.py
---------------------
-Model 6: LSTM Seq2Seq WITH Bahdanau Attention
-- At each decode step, attention SCORES all encoder outputs
-- Decoder focuses on the most relevant input characters
-- E.g. when generating 'न', it attends strongly to 'n'
-- This is the key architecture concept to explain in viva!
-
-Bahdanau Attention (Additive Attention) formula:
-  score(h_t, h_s) = V * tanh(W1*h_t + W2*h_s)
-  alpha = softmax(score)
-  context = sum(alpha * encoder_outputs)
-
-Person 3 is responsible for this file.
-
-Usage:
-    python models/model6_attention.py
-"""
-
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
